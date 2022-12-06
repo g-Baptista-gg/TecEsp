@@ -4,7 +4,7 @@ import pandas as pd
 from mpl_toolkits.mplot3d import Axes3D
 from lmfit import Model
 import scienceplots
-#plt.style.use(['science','nature'])
+plt.style.use(['science','nature'])
 
 
 #____________AVISO: TEMOS QUE FAZER OS FITS EM CANAIS POR CAUSA DAS INTENSIDADES____________#
@@ -18,13 +18,13 @@ for i in vol:
     df=np.array(pd.read_csv('s_brem/'+str(i)+'.csv'))
     ax0.plot(df[120:-1500,0],i*np.ones(len(df[120:-1500,0])),df[120:-1500,1],label=str(i)+' $\mu$L')
 ax0.legend()
+fig0.tight_layout()
 
+def en_to_sig(en):
+    return 0.00412*en+0.0355
 
-
-def gaussian(x,amp,cen,wid):
-    return amp * np.exp(-(x-cen)**2 / wid)
-def linmod(x,a,b,c):
-    return a*x**2 +b*x+c
+def gaussian(x,amp,cen,sig):
+    return amp * np.exp(-(x-cen)**2 / (2*sig**2))
 
 volume = 200
 def fitdata(volume):
@@ -33,9 +33,9 @@ def fitdata(volume):
         if df[i,1]<=0:
             df[i,1]=0
 
-
+    df=df[340:-3000]
     fig1,ax1=plt.subplots(1,1)
-    ax1.plot(df[340:-2900,0],df[340:-2900,1],label=str(i)+' $\mu$L')
+    ax1.plot(df[:,0],df[:,1],label=str(volume)+' $\mu$L')
 
     Ca_model=Model(gaussian,prefix='Ca_alpha_')+Model(gaussian,prefix='Ca_beta_')
     Sc_model=Model(gaussian,prefix='Sc_alpha_')+Model(gaussian,prefix='Sc_beta_')
@@ -51,116 +51,32 @@ def fitdata(volume):
 
     if volume==0:
         total_model=Ca_model+Ti_model+Cr_model+Fe_model+Ni_model+Cu_model+Zn_model
+        elements=['Ca','Ti','Cr','Fe','Ni','Cu','Zn']
+        alphas=[3.692,4.512,5.415,6.405,7.480,8.046,8.637]
+        betas= [4.013,4.933,5.947,7.059,8.267,8.904,9.570]
     else:
         total_model=Ca_model+Sc_model+Ti_model+V_model+Cr_model+Mn_model+Fe_model+Co_model+Ni_model+Cu_model+Zn_model
+        elements=['Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn']
+        alphas=[3.692,4.093,4.512,4.953,5.415,5.900,6.405,6.931,7.480,8.046,8.637]
+        betas= [4.013,4.464,4.933,5.428,5.947,6.492,7.059,7.649,8.267,8.904,9.570]
     params = total_model.make_params()
 
-    """"
-    params['Ca_beta_amp'].set(expr='Ca_alpha_amp*0.01')
-    params['Sc_beta_amp'].set(expr='Sc_alpha_amp*0.01')
-    params['Ti_beta_amp'].set(expr='Ti_alpha_amp*0.01')
-    params['V_beta_amp'].set(expr='V_alpha_amp*0.01')
-    params['Mn_beta_amp'].set(expr='Mn_alpha_amp*0.01')
-    params['Fe_beta_amp'].set(expr='Fe_alpha_amp*0.01')
-    params['Co_beta_amp'].set(expr='Co_alpha_amp*0.01')
-    params['Ni_beta_amp'].set(expr='Ni_alpha_amp*0.01')
-    params['Cu_beta_amp'].set(expr='Cu_alpha_amp*0.01')
-    params['Zn_beta_amp'].set(expr='Zn_alpha_amp*0.01')
-    """
-    #params['lin_a'].set(value=0)
-    #params['lin_b'].set(value=0)
-    #params['lin_c'].set(value=0)
-
-
-    params['Ca_alpha_cen'].set(value=3.692,vary=False)
-    params['Ca_beta_cen'].set(value=4.013,vary=False)
-    params['Ca_alpha_wid'].set(min=0,value=0.001,max=0.1)
-    params['Ca_beta_wid'].set(min=0,value=0.001,max=0.1)
-    params['Ca_alpha_amp'].set(min=0,value=1000)
-    params['Ca_beta_amp'].set(min=0.1*params['Ca_alpha_amp'].min,max=0.2*params['Ca_alpha_amp'].max,value=0.17*params['Ca_alpha_amp'].value)
-    #################################################
-    if volume!=0:
-        params['Sc_alpha_cen'].set(value=4.093,vary=False)
-        params['Sc_beta_cen'].set(value=4.464,vary=False)
-        params['Sc_alpha_wid'].set(min=0,value=0.001,max=0.1)
-        params['Sc_beta_wid'].set(min=0,value=0.001,max=0.1)
-        params['Sc_alpha_amp'].set(min=0,value=1000)
-        params['Sc_beta_amp'].set(min=0.1*params['Sc_alpha_amp'].min,max=0.2*params['Sc_alpha_amp'].max,value=0.17*params['Sc_alpha_amp'].value)
-    #################################################
-    params['Ti_alpha_cen'].set(value=4.512,vary=False)
-    params['Ti_beta_cen'].set(value=4.933,vary=False)
-    params['Ti_alpha_wid'].set(min=0,value=0.001,max=0.1)
-    params['Ti_beta_wid'].set(min=0,value=0.001,max=0.1)
-    params['Ti_alpha_amp'].set(min=0,value=10000)
-    params['Ti_beta_amp'].set(min=0.1*params['Ti_alpha_amp'].min,max=0.2*params['Ti_alpha_amp'].max,value=0.17*params['Ti_alpha_amp'].value)
-    #################################################
-    if volume!=0:
-        params['V_alpha_cen'].set(value=4.953,vary=False)
-        params['V_beta_cen'].set(value=5.428,vary=False)
-        params['V_alpha_wid'].set(min=0,value=0.001,max=0.1)
-        params['V_beta_wid'].set(min=0,value=0.001,max=0.1)
-        params['V_alpha_amp'].set(min=0,value=10000)
-        params['V_beta_amp'].set(min=0.1*params['V_alpha_amp'].min,max=0.2*params['V_alpha_amp'].max,value=0.17*params['V_alpha_amp'].value)
-    #################################################
-    params['Cr_alpha_cen'].set(value=5.415,vary=False)
-    params['Cr_beta_cen'].set(value=5.947,vary=False)
-    params['Cr_alpha_wid'].set(min=0,value=0.001,max=0.1)
-    params['Cr_beta_wid'].set(min=0,value=0.001,max=0.1)
-    params['Cr_alpha_amp'].set(min=0,value=10000)
-    params['Cr_beta_amp'].set(min=0.1*params['Cr_alpha_amp'].min,max=0.2*params['Cr_alpha_amp'].max,value=0.17*params['Cr_alpha_amp'].value)
-    #################################################
-    if volume!=0:
-        params['Mn_alpha_cen'].set(value=5.900,vary=False)
-        params['Mn_beta_cen'].set(value=6.492,vary=False)
-        params['Mn_alpha_wid'].set(min=0,value=0.001,max=0.1)
-        params['Mn_beta_wid'].set(min=0,value=0.001,max=0.1)
-        params['Mn_alpha_amp'].set(min=0,value=10000)
-        params['Mn_beta_amp'].set(min=0.1*params['Mn_alpha_amp'].min,max=0.2*params['Mn_alpha_amp'].max,value=0.17*params['Mn_alpha_amp'].value)
-    #################################################
-    params['Fe_alpha_cen'].set(value=6.405,vary=False)
-    params['Fe_beta_cen'].set(value=7.059,vary=False)
-    params['Fe_alpha_wid'].set(min=0,value=0.001,max=0.1)
-    params['Fe_beta_wid'].set(min=0,value=0.001,max=0.1)
-    params['Fe_alpha_amp'].set(min=0,value=10000)
-    params['Fe_beta_amp'].set(min=0.1*params['Fe_alpha_amp'].min,max=0.2*params['Fe_alpha_amp'].max,value=0.17*params['Fe_alpha_amp'].value)
-    #################################################
-    if volume!=0:
-        params['Co_alpha_cen'].set(value=6.931,vary=False)
-        params['Co_beta_cen'].set(value=7.649,vary=False)
-        params['Co_alpha_wid'].set(min=0,value=0.001,max=0.1)
-        params['Co_beta_wid'].set(min=0,value=0.001,max=0.1)
-        params['Co_alpha_amp'].set(min=0,value=10000)
-        params['Co_beta_amp'].set(min=0.1*params['Co_alpha_amp'].min,max=0.2*params['Co_alpha_amp'].max,value=0.17*params['Co_alpha_amp'].value)
-    #################################################
-    params['Ni_alpha_cen'].set(value=7.480,vary=False)
-    params['Ni_beta_cen'].set(value=8.267,vary=False)
-    params['Ni_alpha_wid'].set(min=0,value=0.001,max=0.1)
-    params['Ni_beta_wid'].set(min=0,value=0.001,max=0.1)
-    params['Ni_alpha_amp'].set(min=0,value=10000)
-    params['Ni_beta_amp'].set(min=0.1*params['Ni_alpha_amp'].min,max=0.2*params['Ni_alpha_amp'].max,value=0.17*params['Ni_alpha_amp'].value)
-    #################################################
-    params['Cu_alpha_cen'].set(value=8.046,vary=False)
-    params['Cu_beta_cen'].set(value=8.904,vary=False)
-    params['Cu_alpha_wid'].set(min=0,value=0.001,max=0.1)
-    params['Cu_beta_wid'].set(min=0,value=0.001,max=0.1)
-    params['Cu_alpha_amp'].set(min=0,value=10000)
-    params['Cu_beta_amp'].set(min=0.1*params['Cu_alpha_amp'].min,max=0.2*params['Cu_alpha_amp'].max,value=0.17*params['Cu_alpha_amp'].value)
-    #################################################
-    params['Zn_alpha_cen'].set(value=8.637,vary=False)
-    params['Zn_beta_cen'].set(value=9.570,vary=False)
-    params['Zn_alpha_wid'].set(min=0,value=0.001,max=0.1)
-    params['Zn_beta_wid'].set(min=0,value=0.001,max=0.1)
-    params['Zn_alpha_amp'].set(min=0,value=10000)
-    params['Zn_beta_amp'].set(min=0.1*params['Zn_alpha_amp'].min,max=0.2*params['Zn_alpha_amp'].max,value=0.17*params['Zn_alpha_amp'].value)
-
-    result=total_model.fit(data=df[340:-2900,1],params=params,x=df[340:-2900,0])
+    for i in range(len(elements)):
+        params[elements[i]+'_alpha_cen'].set(value=alphas[i],vary=False)
+        params[elements[i]+'_beta_cen'].set(value=betas[i],vary=False)
+        params[elements[i]+'_alpha_sig'].set(value=en_to_sig(params[elements[i]+'_alpha_cen'].value),vary=False)
+        params[elements[i]+'_beta_sig'].set(value=en_to_sig(params[elements[i]+'_beta_cen'].value),vary=False)
+        params[elements[i]+'_alpha_amp'].set(min=0,value=1000)
+        params[elements[i]+'_beta_amp'].set(value=params[elements[i]+'_alpha_amp'].value)
+    
     #print(params.pretty_print())
-
+    result=total_model.fit(data=df[:,1],params=params,x=df[:,0])
     ax1.set_xlabel('Energy (keV)')
     ax1.set_ylabel('Counts')
-    fig1.suptitle(str(volume)+' $\mu$L')
-    ax1.plot(df[340:-2900,0],result.best_fit)
+    #fig1.suptitle(str(volume)+' $\mu$L')
+    ax1.plot(df[:,0],result.best_fit,label='Fit')
     plt.tight_layout()
+    ax1.legend()
     fig1.savefig(str(volume)+'uL.pdf',dpi=300)
     print(result.fit_report())
 
