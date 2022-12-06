@@ -5,6 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from lmfit import Model
 import scienceplots
 plt.style.use(['science','nature'])
+import matplotlib.cm as cm
 
 
 #____________AVISO: TEMOS QUE FAZER OS FITS EM CANAIS POR CAUSA DAS INTENSIDADES____________#
@@ -67,14 +68,29 @@ def fitdata(volume):
         params[elements[i]+'_alpha_sig'].set(value=en_to_sig(params[elements[i]+'_alpha_cen'].value),vary=False)
         params[elements[i]+'_beta_sig'].set(value=en_to_sig(params[elements[i]+'_beta_cen'].value),vary=False)
         params[elements[i]+'_alpha_amp'].set(min=0,value=1000)
-        params[elements[i]+'_beta_amp'].set(value=params[elements[i]+'_alpha_amp'].value)
+        params[elements[i]+'_beta_amp'].set(min=0,value=0.10*params[elements[i]+'_alpha_amp'].value)
     
     #print(params.pretty_print())
     result=total_model.fit(data=df[:,1],params=params,x=df[:,0])
     ax1.set_xlabel('Energy (keV)')
     ax1.set_ylabel('Counts')
     #fig1.suptitle(str(volume)+' $\mu$L')
-    ax1.plot(df[:,0],result.best_fit,label='Fit')
+    colors = cm.gist_ncar(np.linspace(0, 1, len(elements)+3))
+    ax1.plot(df[:,0],result.best_fit,label='Fit',color='k')
+    cj=0
+    for i in elements:
+        ma=result.params[i+'_alpha_cen'].value
+        mb=result.params[i+'_beta_cen'].value
+        aa=result.params[i+'_alpha_amp'].value
+        ab=result.params[i+'_beta_amp'].value
+        sa=result.params[i+'_alpha_sig'].value
+        sb=result.params[i+'_beta_sig'].value
+        color = next(ax1._get_lines.prop_cycler)['color']
+        ax1.plot(df[:,0],gaussian(df[:,0],aa,ma,sa),'-.',label= i,c=colors[cj])
+        ax1.plot(df[:,0],gaussian(df[:,0],ab,mb,sb),'-.',c=colors[cj])
+        cj+=1
+
+
     plt.tight_layout()
     ax1.legend()
     fig1.savefig(str(volume)+'uL.pdf',dpi=300)
@@ -85,4 +101,4 @@ for i in [0,20,40,150,200,300,500]:
 
 
 
-plt.show()
+#plt.show()
