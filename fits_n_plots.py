@@ -7,24 +7,40 @@ import scienceplots
 
 import matplotlib.cm as cm
 from matplotlib.offsetbox import AnchoredText
+from matplotlib.collections import PolyCollection
 
 
 #____________AVISO: TEMOS QUE FAZER OS FITS EM CANAIS POR CAUSA DAS INTENSIDADES____________#
 #__________________________OU ARRANJAR MANEIRA DE CONVERTER EM EN__________________________#
 
+def polygon_under_graph(xlist, ylist):
+    """
+    Construct the vertex list which defines the polygon filling the space under
+    the (xlist, ylist) line graph.  Assumes the xs are in ascending order.
+    """
+    return [(xlist[0], 0.), *zip(xlist, ylist), (xlist[-1], 0.)]
+
+
 
 vol = [0,20,40,150,200,300,500]
 
 fig0,ax0 = plt.subplots(1,1,subplot_kw={'projection': '3d'})
-for i in vol:
+verts=[]
+ys=[]
+facecolors = plt.colormaps['viridis_r'](np.linspace(0, 1, len(vol)))
+cc=0
+for i in vol[::-1]:
     df=np.array(pd.read_csv('s_brem/'+str(i)+'.csv'))
-    ax0.plot(df[120:-1500,0],i*np.ones(len(df[120:-1500,0])),df[120:-1500,1],label=str(i)+' $\mu$L')
+    ax0.plot(df[120:-3000,0],i*np.ones(len(df[120:-3000,0])),df[120:-3000,1],label=str(i)+' $\mu$L',color=facecolors[cc])
+    ax0.add_collection3d(plt.fill_between(df[120:-3000,0],df[120:-3000,1],0,color=facecolors[cc], alpha=0.2,label="filled plot"),i, zdir='y')
+    cc+=1
+
 ax0.set_xlabel('Energy (keV)')
-ax0.set_ylabel('Volume Deposited ($\mu$L)')
+ax0.set_ylabel('Deposited Volume ($\mu$L)')
 ax0.set_zlabel('Counts')
-ax0.legend()
+#ax0.legend()
 fig0.tight_layout()
-fig0.savefig('3D.pdf',dpi=300)
+fig0.savefig('3D_s_brem.pdf',dpi=300)
 
 plt.style.use(['science','nature'])
 
@@ -117,14 +133,16 @@ elements=['Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn']
 
 
 
-a=['45','51','61','64','62','61','53','52']
-au=['3','3','4','3','4','3','3','3']
-b=['3','11','0','$5$','-1','0','1','16']
+a=['45','51','61','64' ,'62','61','53','52']
+au=['3','3' ,'4' ,'3'  ,'4' ,'3' ,'3' ,'3']
+b=['3' ,'11','0' ,'$5$','-1','0','1','16']
 bu=['5','5','5','3','5','3','2','3']
 bnot=['$\cdot 10$','','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdot 10$']
 
+
+fig2,ax2=plt.subplots(1,1)
+colors = cm.jet(np.linspace(0, 1, len(elements)+2))
 for i in range(len(elements)):
-    fig2,ax2=plt.subplots(1,1)
     if elements[i] not in ['Ca','Sc','Ti']:
         intensity=[]
         intensity_unc=[]
@@ -141,30 +159,28 @@ for i in range(len(elements)):
             else:
                 intensity.append(np.sqrt(2*np.pi)*fit_res[j+1][elements[i]+'_alpha_amp'].value*fit_res[j+1][elements[i]+'_alpha_sig'].value)
                 intensity_unc.append(np.sqrt(2*np.pi)*fit_res[j+1][elements[i]+'_alpha_amp'].stderr*fit_res[j+1][elements[i]+'_alpha_sig'])
-        colors = cm.gist_ncar(np.linspace(0, 1, len(elements)+3))
         #ax2.plot(quantity,intensity,'.',label=elements[i],color=colors[i])
         quantity=np.array(quantity)*0.1
-        intensity=np.array(intensity)
-        intensity_unc=np.array(intensity_unc)
-        ax2.errorbar(quantity,intensity,yerr=intensity_unc,color=colors[i],linestyle='',fmt='.',capsize=1,label=elements[i])
+        intensity=np.array(intensity)/(20*60)
+        intensity_unc=np.array(intensity_unc)/(20*60)
+        ax2.errorbar(quantity,intensity,yerr=intensity_unc,xerr=0.05*quantity,color=colors[i],linestyle='',fmt='.',capsize=1,label=elements[i])
     
         linear_Mod=Model(lin_func)
         lin_par=linear_Mod.make_params()
         lin_par['a'].set(value=50)
         lin_par['b'].set(value=0)
-        result=linear_Mod.fit(data=intensity,x=quantity,params=lin_par,weights=1/intensity_unc)
+        result=linear_Mod.fit(data=intensity,x=quantity,params=lin_par,weights=1/np.sqrt(intensity_unc**2 +0*(0.05*quantity)**2))
         #print('-----------'+elements[i]+'-----------------')
-        #print(result.fit_report())
-        ax2.plot(quantity,result.best_fit,label='Linear Fit',color=colors[i])
-        ax2.legend()
-        ax2.set_xlabel('Quantity ($\mu$g)')
-        ax2.set_ylabel('Peak Intensity')
-        
-        
-
-        ax2.add_artist(AnchoredText("$y=a\cdot x +b$\n $a=$"+a.pop(0)+'$\pm$'+au.pop(0)+'\n$b=$('+b.pop(0)+'$\pm$'+bu.pop(0)+')'+bnot.pop(0), loc=7))
-        fig2.tight_layout()
-        fig2.savefig('calibration_curves/'+elements[i]+'.pdf',dpi=300)
+        print(result.fit_report())
+        ax2.plot(quantity,result.best_fit,color=colors[i],linestyle=':')
+        print('AQUI')
+ax2.legend()
+ax2.set_xlabel('Quantity ($\mu$g)')
+ax2.set_ylabel(r'K$_\alpha$ counts /s')
+#ax2.add_artist(AnchoredText("$y=a\cdot x +b$\n $a=$"+a.pop(0)+'$\pm$'+au.pop(0)+'\n$b=$('+b.pop(0)+'$\pm$'+bu.pop(0)+')'+bnot.pop(0), loc=7))
+fig2.tight_layout()
+fig2.savefig('calibration_curves/all_elements.pdf',dpi=300)
 
 
 #COISAS A FAZER: METER CONTAGENS/AREA/TEMPO
+#plt.show()
