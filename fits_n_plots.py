@@ -4,8 +4,9 @@ import pandas as pd
 from mpl_toolkits.mplot3d import Axes3D
 from lmfit import Model
 import scienceplots
-plt.style.use(['science','nature'])
+
 import matplotlib.cm as cm
+from matplotlib.offsetbox import AnchoredText
 
 
 #____________AVISO: TEMOS QUE FAZER OS FITS EM CANAIS POR CAUSA DAS INTENSIDADES____________#
@@ -18,14 +19,22 @@ fig0,ax0 = plt.subplots(1,1,subplot_kw={'projection': '3d'})
 for i in vol:
     df=np.array(pd.read_csv('s_brem/'+str(i)+'.csv'))
     ax0.plot(df[120:-1500,0],i*np.ones(len(df[120:-1500,0])),df[120:-1500,1],label=str(i)+' $\mu$L')
+ax0.set_xlabel('Energy (keV)')
+ax0.set_ylabel('Volume Deposited ($\mu$L)')
+ax0.set_zlabel('Counts')
 ax0.legend()
 fig0.tight_layout()
+fig0.savefig('3D.pdf',dpi=300)
+
+plt.style.use(['science','nature'])
 
 def en_to_sig(en):
     return 0.00412*en+0.0355
 
 def gaussian(x,amp,cen,sig):
     return amp * np.exp(-(x-cen)**2 / (2*sig**2))
+def lin_func(x,a,b):
+    return a*x+b
 
 volume = 200
 def fitdata(volume):
@@ -77,6 +86,7 @@ def fitdata(volume):
     #fig1.suptitle(str(volume)+' $\mu$L')
     colors = cm.gist_ncar(np.linspace(0, 1, len(elements)+3))
     ax1.plot(df[:,0],result.best_fit,label='Fit',color='k')
+
     cj=0
     for i in elements:
         ma=result.params[i+'_alpha_cen'].value
@@ -93,12 +103,68 @@ def fitdata(volume):
 
     plt.tight_layout()
     ax1.legend()
-    fig1.savefig(str(volume)+'uL.pdf',dpi=300)
-    print(result.fit_report())
+    fig1.savefig('spectra/'+str(volume)+'uL.pdf',dpi=300)
+    #print(result.fit_report())
+    return result.params
 
+
+fit_res=[]
 for i in [0,20,40,150,200,300,500]:
-    fitdata(i)
+    fit_res.append(fitdata(i))
+
+elements0=['Ca','Ti','Cr','Fe','Ni','Cu','Zn']
+elements=['Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn']
 
 
 
-#plt.show()
+a=['45','51','61','64','62','61','53','52']
+au=['3','3','4','3','4','3','3','3']
+b=['3','11','0','$5$','-1','0','1','16']
+bu=['5','5','5','3','5','3','2','3']
+bnot=['$\cdot 10$','','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdot 10$']
+
+for i in range(len(elements)):
+    fig2,ax2=plt.subplots(1,1)
+    if elements[i] not in ['Ca','Sc','Ti']:
+        intensity=[]
+        intensity_unc=[]
+        if elements[i] in elements0:
+            quantity=[0,20,40,150,200,300,500]
+        else:
+            quantity=[20,40,150,200,300,500]
+
+        for j in range(len(quantity)):
+
+            if elements[i] in elements0:
+                intensity.append(np.sqrt(2*np.pi)*fit_res[j][elements[i]+'_alpha_amp'].value*fit_res[j][elements[i]+'_alpha_sig'].value)
+                intensity_unc.append(np.sqrt(2*np.pi)*fit_res[j][elements[i]+'_alpha_amp'].stderr*fit_res[j][elements[i]+'_alpha_sig'])
+            else:
+                intensity.append(np.sqrt(2*np.pi)*fit_res[j+1][elements[i]+'_alpha_amp'].value*fit_res[j+1][elements[i]+'_alpha_sig'].value)
+                intensity_unc.append(np.sqrt(2*np.pi)*fit_res[j+1][elements[i]+'_alpha_amp'].stderr*fit_res[j+1][elements[i]+'_alpha_sig'])
+        colors = cm.gist_ncar(np.linspace(0, 1, len(elements)+3))
+        #ax2.plot(quantity,intensity,'.',label=elements[i],color=colors[i])
+        quantity=np.array(quantity)*0.1
+        intensity=np.array(intensity)
+        intensity_unc=np.array(intensity_unc)
+        ax2.errorbar(quantity,intensity,yerr=intensity_unc,color=colors[i],linestyle='',fmt='.',capsize=1,label=elements[i])
+    
+        linear_Mod=Model(lin_func)
+        lin_par=linear_Mod.make_params()
+        lin_par['a'].set(value=50)
+        lin_par['b'].set(value=0)
+        result=linear_Mod.fit(data=intensity,x=quantity,params=lin_par,weights=1/intensity_unc)
+        #print('-----------'+elements[i]+'-----------------')
+        #print(result.fit_report())
+        ax2.plot(quantity,result.best_fit,label='Linear Fit',color=colors[i])
+        ax2.legend()
+        ax2.set_xlabel('Quantity ($\mu$g)')
+        ax2.set_ylabel('Peak Intensity')
+        
+        
+
+        ax2.add_artist(AnchoredText("$y=a\cdot x +b$\n $a=$"+a.pop(0)+'$\pm$'+au.pop(0)+'\n$b=$('+b.pop(0)+'$\pm$'+bu.pop(0)+')'+bnot.pop(0), loc=7))
+        fig2.tight_layout()
+        fig2.savefig('calibration_curves/'+elements[i]+'.pdf',dpi=300)
+
+
+#COISAS A FAZER: METER CONTAGENS/AREA/TEMPO

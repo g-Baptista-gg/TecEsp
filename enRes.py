@@ -33,6 +33,7 @@ for i in range(len(elements)):
     res_unc.append(result.params['sig'].stderr)
     ax.legend()
 
+plt.style.use(['science','nature'])
 fig,ax=plt.subplots(1,1)
 
 def linear_res(x,dec,inter):
