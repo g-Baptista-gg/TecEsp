@@ -27,12 +27,12 @@ vol = [0,20,40,150,200,300,500]
 fig0,ax0 = plt.subplots(1,1,subplot_kw={'projection': '3d'})
 verts=[]
 ys=[]
-facecolors = plt.colormaps['viridis_r'](np.linspace(0, 1, len(vol)))
+facecolors = plt.colormaps['jet'](np.linspace(0, 1, len(vol)))
 cc=0
 for i in vol[::-1]:
-    df=np.array(pd.read_csv('s_brem/'+str(i)+'.csv'))
-    ax0.plot(df[120:-3000,0],i*np.ones(len(df[120:-3000,0])),df[120:-3000,1],label=str(i)+' $\mu$L',color=facecolors[cc])
-    ax0.add_collection3d(plt.fill_between(df[120:-3000,0],df[120:-3000,1],0,color=facecolors[cc], alpha=0.2,label="filled plot"),i, zdir='y')
+    df=np.array(pd.read_csv('c_brem/'+str(i)+'.csv'))
+    ax0.plot(df[120:-1800,0],i*np.ones(len(df[120:-1800,0])),df[120:-1800,1],label=str(i)+' $\mu$L',color=facecolors[cc])
+    ax0.add_collection3d(plt.fill_between(df[120:-1800,0],df[120:-1800,1],0,color=facecolors[cc], alpha=0.2,label="filled plot"),i, zdir='y')
     cc+=1
 
 ax0.set_xlabel('Energy (keV)')
@@ -40,7 +40,7 @@ ax0.set_ylabel('Deposited Volume ($\mu$L)')
 ax0.set_zlabel('Counts')
 #ax0.legend()
 fig0.tight_layout()
-fig0.savefig('3D_s_brem.pdf',dpi=300)
+fig0.savefig('3D_c_brem.pdf',dpi=300)
 
 plt.style.use(['science','nature'])
 
@@ -61,8 +61,9 @@ def fitdata(volume):
 
     df=df[340:-3000]
     fig1,ax1=plt.subplots(1,1)
-    ax1.plot(df[:,0],df[:,1],label=str(volume)+' $\mu$L')
-
+    #fig1.set_figheight(3)
+    ax1.errorbar(df[:,0],df[:,1],yerr=np.sqrt(df[:,1]),linestyle='',capsize=1,zorder=0,label='Data')
+    #fig1.suptitle(str(volume)+' $\mu$L')
     Ca_model=Model(gaussian,prefix='Ca_alpha_')+Model(gaussian,prefix='Ca_beta_')
     Sc_model=Model(gaussian,prefix='Sc_alpha_')+Model(gaussian,prefix='Sc_beta_')
     Ti_model=Model(gaussian,prefix='Ti_alpha_')+Model(gaussian,prefix='Ti_beta_')
@@ -100,8 +101,8 @@ def fitdata(volume):
     ax1.set_xlabel('Energy (keV)')
     ax1.set_ylabel('Counts')
     #fig1.suptitle(str(volume)+' $\mu$L')
-    colors = cm.gist_ncar(np.linspace(0, 1, len(elements)+3))
-    ax1.plot(df[:,0],result.best_fit,label='Fit',color='k')
+    colors = cm.gist_ncar(np.linspace(0, 1, len(elements)+2))
+    ax1.plot(df[:,0],result.best_fit,'-',label='Fit',color='k',zorder=5)
 
     cj=0
     for i in elements:
@@ -112,8 +113,10 @@ def fitdata(volume):
         sa=result.params[i+'_alpha_sig'].value
         sb=result.params[i+'_beta_sig'].value
         color = next(ax1._get_lines.prop_cycler)['color']
-        ax1.plot(df[:,0],gaussian(df[:,0],aa,ma,sa),'-.',label= i,c=colors[cj])
-        ax1.plot(df[:,0],gaussian(df[:,0],ab,mb,sb),'-.',c=colors[cj])
+        ax1.plot(df[:,0],gaussian(df[:,0],aa,ma,sa),'-.',c=colors[cj],label=i,zorder=6)
+        ax1.plot(df[:,0],gaussian(df[:,0],ab,mb,sb),'-.',c=colors[cj],zorder=7)
+        ax1.fill_between(df[:,0], 0, gaussian(df[:,0],aa,ma,sa),alpha=0.2,color=colors[cj],zorder=2)
+        ax1.fill_between(df[:,0],0,gaussian(df[:,0],ab,mb,sb),alpha=0.2,color=colors[cj],zorder=3)
         cj+=1
 
 
@@ -141,7 +144,7 @@ bnot=['$\cdot 10$','','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdo
 
 
 fig2,ax2=plt.subplots(1,1)
-colors = cm.jet(np.linspace(0, 1, len(elements)+2))
+colors = cm.jet(np.linspace(0, 1, len(elements)))
 for i in range(len(elements)):
     if elements[i] not in ['Ca','Sc','Ti']:
         intensity=[]
@@ -161,8 +164,8 @@ for i in range(len(elements)):
                 intensity_unc.append(np.sqrt(2*np.pi)*fit_res[j+1][elements[i]+'_alpha_amp'].stderr*fit_res[j+1][elements[i]+'_alpha_sig'])
         #ax2.plot(quantity,intensity,'.',label=elements[i],color=colors[i])
         quantity=np.array(quantity)*0.1
-        intensity=np.array(intensity)/(20*60)
-        intensity_unc=np.array(intensity_unc)/(20*60)
+        intensity=np.array(intensity)
+        intensity_unc=np.array(intensity_unc)
         ax2.errorbar(quantity,intensity,yerr=intensity_unc,xerr=0.05*quantity,color=colors[i],linestyle='',fmt='.',capsize=1,label=elements[i])
     
         linear_Mod=Model(lin_func)
@@ -176,7 +179,7 @@ for i in range(len(elements)):
         print('AQUI')
 ax2.legend()
 ax2.set_xlabel('Quantity ($\mu$g)')
-ax2.set_ylabel(r'K$_\alpha$ counts /s')
+ax2.set_ylabel(r'K$_\alpha$ Peak Intensity')
 #ax2.add_artist(AnchoredText("$y=a\cdot x +b$\n $a=$"+a.pop(0)+'$\pm$'+au.pop(0)+'\n$b=$('+b.pop(0)+'$\pm$'+bu.pop(0)+')'+bnot.pop(0), loc=7))
 fig2.tight_layout()
 fig2.savefig('calibration_curves/all_elements.pdf',dpi=300)
