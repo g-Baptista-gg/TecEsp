@@ -30,7 +30,7 @@ ys=[]
 facecolors = plt.colormaps['jet'](np.linspace(0, 1, len(vol)))
 cc=0
 for i in vol[::-1]:
-    df=np.array(pd.read_csv('c_brem/'+str(i)+'.csv'))
+    df=np.array(pd.read_csv('s_brem/'+str(i)+'.csv'))
     ax0.plot(df[120:-1800,0],i*np.ones(len(df[120:-1800,0])),df[120:-1800,1],label=str(i)+' $\mu$L',color=facecolors[cc])
     ax0.add_collection3d(plt.fill_between(df[120:-1800,0],df[120:-1800,1],0,color=facecolors[cc], alpha=0.2,label="filled plot"),i, zdir='y')
     cc+=1
@@ -40,7 +40,7 @@ ax0.set_ylabel('Deposited Volume ($\mu$L)')
 ax0.set_zlabel('Counts')
 #ax0.legend()
 fig0.tight_layout()
-fig0.savefig('3D_c_brem.pdf',dpi=300)
+fig0.savefig('3D_s_brem.png',dpi=300)
 
 plt.style.use(['science','nature'])
 
@@ -61,6 +61,7 @@ def fitdata(volume):
 
     df=df[340:-3000]
     fig1,ax1=plt.subplots(1,1)
+    fig1.set_figheight(3)
     #fig1.set_figheight(3)
     ax1.errorbar(df[:,0],df[:,1],yerr=np.sqrt(df[:,1]),linestyle='',capsize=1,zorder=0,label='Data')
     #fig1.suptitle(str(volume)+' $\mu$L')
@@ -122,7 +123,7 @@ def fitdata(volume):
 
     plt.tight_layout()
     ax1.legend()
-    fig1.savefig('spectra/'+str(volume)+'uL.pdf',dpi=300)
+    fig1.savefig('spectra/'+str(volume)+'uL.png',dpi=300)
     #print(result.fit_report())
     return result.params
 
@@ -144,6 +145,7 @@ bnot=['$\cdot 10$','','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdot 10$','$\cdo
 
 
 fig2,ax2=plt.subplots(1,1)
+fig2.set_figheight(3)
 colors = cm.jet(np.linspace(0, 1, len(elements)))
 for i in range(len(elements)):
     if elements[i] not in ['Ca','Sc','Ti']:
@@ -173,16 +175,21 @@ for i in range(len(elements)):
         lin_par['a'].set(value=50)
         lin_par['b'].set(value=0)
         result=linear_Mod.fit(data=intensity,x=quantity,params=lin_par,weights=1/np.sqrt(intensity_unc**2 +0*(0.05*quantity)**2))
-        #print('-----------'+elements[i]+'-----------------')
+        print('-----------'+elements[i]+'-----------------')
         print(result.fit_report())
+        rss = result.chisqr
+        tss = sum(np.power(intensity-intensity.mean(),2))
+        print('R2= ',1-rss/tss)
         ax2.plot(quantity,result.best_fit,color=colors[i],linestyle=':')
-        print('AQUI')
+        errTop=lin_func(quantity,result.params['a'].value+result.params['a'].stderr,result.params['b'].value+result.params['b'].stderr)
+        errBot=lin_func(quantity,result.params['a'].value-result.params['a'].stderr,result.params['b'].value-result.params['b'].stderr)
+        #ax2.fill_between(quantity,errTop,errBot,alpha=0.2,color=colors[i])
 ax2.legend()
 ax2.set_xlabel('Quantity ($\mu$g)')
 ax2.set_ylabel(r'K$_\alpha$ Peak Intensity')
 #ax2.add_artist(AnchoredText("$y=a\cdot x +b$\n $a=$"+a.pop(0)+'$\pm$'+au.pop(0)+'\n$b=$('+b.pop(0)+'$\pm$'+bu.pop(0)+')'+bnot.pop(0), loc=7))
 fig2.tight_layout()
-fig2.savefig('calibration_curves/all_elements.pdf',dpi=300)
+fig2.savefig('calibration_curves/all_elements.png',dpi=300)
 
 
 #COISAS A FAZER: METER CONTAGENS/AREA/TEMPO
